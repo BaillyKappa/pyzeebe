@@ -64,7 +64,6 @@ class ZeebeWorker(ZeebeTaskRouter):
         self._job_pollers: list[JobPoller] = []
         self._job_streamers: list[JobStreamer] = []
         self._job_executors: list[JobExecutor] = []
-        self._stop_event = anyio.Event()
         self._stream_enabled = stream_enabled
         self._stream_request_timeout = stream_request_timeout
 
