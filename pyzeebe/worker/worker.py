@@ -58,7 +58,7 @@ class ZeebeWorker(ZeebeTaskRouter):
         self._stop_event = anyio.Event()
         self.zeebe_adapter = ZeebeAdapter(grpc_channel, max_connection_retries)
         # Use the handle_disconnect method as callback
-        self.zeebe_adapter.add_disconnect_callback(self._stop_event.set())
+        self.zeebe_adapter.add_disconnect_callback(self._stop_event.set)
         self.name = name or socket.gethostname()
         self.request_timeout = request_timeout
         self.poll_retry_delay = poll_retry_delay
