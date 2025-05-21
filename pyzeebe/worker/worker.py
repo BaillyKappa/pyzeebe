@@ -54,9 +54,11 @@ class ZeebeWorker(ZeebeTaskRouter):
                 It's useful to set a few hours to load-balance your streams over time. New in Zeebe 8.4.
         """
         super().__init__(before, after, exception_handler)
+        # Initialize _stop_event only once
         self._stop_event = anyio.Event()
         self.zeebe_adapter = ZeebeAdapter(grpc_channel, max_connection_retries)
-        self.zeebe_adapter.add_disconnect_callback(self._stop_event.set)
+        # Use the handle_disconnect method as callback
+        self.zeebe_adapter.add_disconnect_callback(self._handle_disconnect)
         self.name = name or socket.gethostname()
         self.request_timeout = request_timeout
         self.poll_retry_delay = poll_retry_delay
@@ -64,8 +66,17 @@ class ZeebeWorker(ZeebeTaskRouter):
         self._job_pollers: list[JobPoller] = []
         self._job_streamers: list[JobStreamer] = []
         self._job_executors: list[JobExecutor] = []
+        # Remove the duplicate initialization of _stop_event
         self._stream_enabled = stream_enabled
         self._stream_request_timeout = stream_request_timeout
+
+    def _handle_disconnect(self) -> None:
+        """Handler called when the Zeebe connection is lost."""
+        logger.error("Lost Zeebe connection - setting stop event")
+        # Log the current state of the event for debugging
+        logger.debug(f"Stop event before setting: {self._stop_event.is_set()}")
+        self._stop_event.set()
+        logger.debug(f"Stop event after setting: {self._stop_event.is_set()}")
 
     def _init_tasks(self) -> None:
         self._job_executors, self._job_pollers, self._job_streamers = [], [], []
@@ -116,7 +127,6 @@ class ZeebeWorker(ZeebeTaskRouter):
         self._init_tasks()
 
         async with anyio.create_task_group() as tg:
-
             for poller in self._job_pollers:
                 tg.start_soon(poller.poll)
 
@@ -126,7 +136,10 @@ class ZeebeWorker(ZeebeTaskRouter):
             for executor in self._job_executors:
                 tg.start_soon(executor.execute)
 
+            # Add additional debug logs around the wait
+            logger.debug("Waiting for stop event to be set")
             await self._stop_event.wait()
+            logger.debug("Stop event was set, cancelling task group")
 
             tg.cancel_scope.cancel()
 
@@ -147,7 +160,10 @@ class ZeebeWorker(ZeebeTaskRouter):
             for executor in self._job_executors:
                 tg.start_soon(executor.stop)
 
+        # Log the current state of the event before setting it
+        logger.debug(f"Stop event before setting (in stop method): {self._stop_event.is_set()}")
         self._stop_event.set()
+        logger.debug(f"Stop event after setting (in stop method): {self._stop_event.is_set()}")
         logger.info("Zeebe worker was stopped")
 
     def include_router(self, *routers: ZeebeTaskRouter) -> None:
