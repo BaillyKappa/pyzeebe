@@ -137,6 +137,7 @@ class ZeebeWorker(ZeebeTaskRouter):
         """
         Stop the worker. This will emit a signal asking tasks to complete the current task and stop polling for new.
         """
+        logger.info("Stopping Zeebe worker")
         async with anyio.create_task_group() as tg:
             for poller in self._job_pollers:
                 tg.start_soon(poller.stop)
@@ -148,6 +149,7 @@ class ZeebeWorker(ZeebeTaskRouter):
                 tg.start_soon(executor.stop)
 
         self._stop_event.set()
+        logger.info("Zeebe worker was stopped")
 
     def include_router(self, *routers: ZeebeTaskRouter) -> None:
         """

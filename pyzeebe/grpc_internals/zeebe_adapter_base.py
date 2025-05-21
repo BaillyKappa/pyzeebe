@@ -66,7 +66,9 @@ class ZeebeAdapterBase:
             logger.info(f"Closing channel after {self._max_connection_retries} retries.")
             self._connected = False
             for callback in self._on_disconnect_callbacks:
+                logger.info("Executing disconnect callback.")
                 callback()
+                logger.info(callback.__name__ + " has been executed.")
 
     def _create_pyzeebe_error_from_grpc_error(self, grpc_error: grpc.aio.AioRpcError) -> PyZeebeError:
         if is_error_status(grpc_error, grpc.StatusCode.RESOURCE_EXHAUSTED):
