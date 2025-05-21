@@ -58,7 +58,7 @@ class ZeebeWorker(ZeebeTaskRouter):
         self._stop_event = anyio.Event()
         self.zeebe_adapter = ZeebeAdapter(grpc_channel, max_connection_retries)
         # Use the handle_disconnect method as callback
-        self.zeebe_adapter.add_disconnect_callback(self._handle_disconnect)
+        self.zeebe_adapter.add_disconnect_callback(self._stop_event.set())
         self.name = name or socket.gethostname()
         self.request_timeout = request_timeout
         self.poll_retry_delay = poll_retry_delay
@@ -69,14 +69,6 @@ class ZeebeWorker(ZeebeTaskRouter):
         # Remove the duplicate initialization of _stop_event
         self._stream_enabled = stream_enabled
         self._stream_request_timeout = stream_request_timeout
-
-    def _handle_disconnect(self) -> None:
-        """Handler called when the Zeebe connection is lost."""
-        logger.error("Lost Zeebe connection - setting stop event")
-        # Log the current state of the event for debugging
-        logger.debug(f"Stop event before setting: {self._stop_event.is_set()}")
-        self._stop_event.set()
-        logger.debug(f"Stop event after setting: {self._stop_event.is_set()}")
 
     def _init_tasks(self) -> None:
         self._job_executors, self._job_pollers, self._job_streamers = [], [], []
